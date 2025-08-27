@@ -112,55 +112,50 @@ if st.button("🚀 Generate Mockups for Selected Batch"):
         st.warning("Upload at least one design and one shirt template.")
     else:
         master_zip = io.BytesIO()
-        with zipfile.ZipFile(master_zip, "w", zipfile.ZIP_DEFLATED) as master_zipf:
+        with zipfile.ZipFile(master_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
             for design_file in selected_batch:
                 graphic_name = st.session_state.design_names.get(design_file.name, "graphic")
                 design_file.seek(0)
                 design = Image.open(design_file).convert("RGBA")
 
-                inner_zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(inner_zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
-                    for shirt_file in shirt_files:
-                        color_name = os.path.splitext(shirt_file.name)[0]
-                        shirt_file.seek(0)
-                        shirt = Image.open(shirt_file).convert("RGBA")
+                for shirt_file in shirt_files:
+                    color_name = os.path.splitext(shirt_file.name)[0]
+                    shirt_file.seek(0)
+                    shirt = Image.open(shirt_file).convert("RGBA")
 
-                        is_model = "model" in shirt_file.name.lower()
-                        offset_pct = model_offset_pct if is_model else plain_offset_pct
-                        padding_ratio = model_padding_ratio if is_model else plain_padding_ratio
+                    is_model = "model" in shirt_file.name.lower()
+                    offset_pct = model_offset_pct if is_model else plain_offset_pct
+                    padding_ratio = model_padding_ratio if is_model else plain_padding_ratio
 
-                        bbox = get_shirt_bbox(shirt)
-                        if bbox:
-                            sx, sy, sw, sh = bbox
-                            scale = min(sw / design.width, sh / design.height, 1.0) * padding_ratio
-                            new_width = int(design.width * scale)
-                            new_height = int(design.height * scale)
-                            resized_design = design.resize((new_width, new_height))
-                            y_offset = int(sh * offset_pct / 100)
-                            x = sx + (sw - new_width) // 2
-                            y = sy + y_offset
-                        else:
-                            resized_design = design
-                            x = (shirt.width - design.width) // 2
-                            y = (shirt.height - design.height) // 2
+                    bbox = get_shirt_bbox(shirt)
+                    if bbox:
+                        sx, sy, sw, sh = bbox
+                        scale = min(sw / design.width, sh / design.height, 1.0) * padding_ratio
+                        new_width = int(design.width * scale)
+                        new_height = int(design.height * scale)
+                        resized_design = design.resize((new_width, new_height))
+                        y_offset = int(sh * offset_pct / 100)
+                        x = sx + (sw - new_width) // 2
+                        y = sy + y_offset
+                    else:
+                        resized_design = design
+                        x = (shirt.width - design.width) // 2
+                        y = (shirt.height - design.height) // 2
 
-                        shirt_copy = shirt.copy()
-                        shirt_copy.paste(resized_design, (x, y), resized_design)
+                    shirt_copy = shirt.copy()
+                    shirt_copy.paste(resized_design, (x, y), resized_design)
 
-                        output_name = f"{graphic_name}_{color_name}_tee.png"
-                        img_byte_arr = io.BytesIO()
-                        shirt_copy.save(img_byte_arr, format='PNG')
-                        img_byte_arr.seek(0)
-                        zipf.writestr(output_name, img_byte_arr.getvalue())
-
-                inner_zip_buffer.seek(0)
-                master_zipf.writestr(f"{graphic_name}.zip", inner_zip_buffer.read())
+                    # Save directly into master ZIP
+                    output_name = f"{graphic_name}_{color_name}_tee.png"
+                    img_byte_arr = io.BytesIO()
+                    shirt_copy.save(img_byte_arr, format='PNG')
+                    img_byte_arr.seek(0)
+                    zipf.writestr(output_name, img_byte_arr.getvalue())
 
         master_zip.seek(0)
         st.download_button(
-            label="📦 Download All Mockups (Grouped by Design)",
+            label="📦 Download All Mockups",
             data=master_zip,
-            file_name="all_mockups_by_design.zip",
+            file_name="all_mockups.zip",
             mime="application/zip"
         )
-
